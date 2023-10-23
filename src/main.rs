@@ -1,58 +1,107 @@
-use std::{collections::HashMap, vec};
+use nalgebra::DMatrix;
+use std::{collections::HashMap, thread, time, vec};
 
 use rand::{self, Rng};
 
+#[derive(Debug)]
+
+pub struct Board {
+    width: usize,
+    heigth: usize,
+    positions: DMatrix<Option<Node>>,
+}
+
+impl Board {
+    fn new(heigth: usize, width: usize) -> Board {
+        let mut positions: Vec<Option<Node>> = vec![];
+        for _ in 0..heigth {
+            for _ in 0..width {
+                positions.push(None);
+            }
+        }
+
+        Board {
+            positions: DMatrix::from_vec(heigth, width, positions),
+            heigth: heigth,
+            width: width,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
-pub struct Position{
-    x: i32,
-    y: i32,
+pub struct Position {
+    x: usize,
+    y: usize,
 }
 
 impl Position {
-    fn new(x: i32, y: i32) -> Position{
-        Position{x: x, y: y}
+    fn new(x: usize, y: usize) -> Position {
+        Position { x: x, y: y }
     }
 
-    fn generate_random_position() -> Position{
+    fn generate_random_position(heigth: usize, width: usize) -> Position {
         let mut rng = rand::thread_rng();
-        let random_start_x = rng.gen_range(0..200);
-        let random_start_y = rng.gen_range(0..200);
+        let random_start_x = rng.gen_range(0..width);
+        let random_start_y = rng.gen_range(0..heigth);
         Position::new(random_start_x, random_start_y)
     }
 
-    fn distance_to_other_position(self, other_point: Position) -> f64 {
-        let number: i32 = i32::pow(other_point.x - self.x, 2) + i32::pow(other_point.y - self.y, 2);
+    fn distance_to_other_position(self, other_point: Position) -> i32 {
+        let x_distance = i32::abs(other_point.x as i32 - self.x as i32);
+        let y_distance = i32::abs(other_point.y as i32 - self.y as i32);
 
-        f64::sqrt(number as f64)
+        let remaining = i32::abs(x_distance - y_distance);
+
+        return 14 * i32::min(x_distance, y_distance) + 10 * remaining;
     }
 
     fn get_neigthbours(self) -> Vec<Position> {
-        let left: Position = Position { x: self.x -1, y: self.y }; 
-        let right: Position = Position { x: self.x + 1, y: self.y };
-        let up: Position = Position { x: self.x, y: self.y + 1 };
-        let down: Position = Position { x: self.x, y: self.y - 1 };
+        let mut positions = vec![];
+        if self.x > 0 {
+            positions.push(Position {
+                x: self.x - 1,
+                y: self.y,
+            })
+        }
+        if self.y > 0 {
+            positions.push(Position {
+                x: self.x,
+                y: self.y - 1,
+            })
+        }
+        positions.push(Position {
+            x: self.x + 1,
+            y: self.y,
+        });
+        positions.push(Position {
+            x: self.x,
+            y: self.y + 1,
+        });
 
-        vec![left, right, up, down]
+        positions
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct Node{
+#[derive(Clone, Debug, PartialEq)]
+pub struct Node {
     comes_from: Option<Box<Node>>,
     pos: Position,
     // g_cost determine the distance from the node to the begining
     g_cost: i32,
+    // h_cost determine the distance to the objective node
+    h_cost: i32,
     // f_cost determines the best_candidate, it's the g_cost + the h_cost
     f_cost: i32,
 }
 
 impl Node {
-    fn new(comes_from: Option<Box<Node>>, position: Position, g_cost: i32, f_cost: i32) -> Node {
-        Node{
+    fn new(comes_from: Option<Box<Node>>, position: Position, g_cost: i32, h_cost: i32) -> Node {
+        Node {
             comes_from: comes_from,
             pos: position,
             g_cost: g_cost,
-            f_cost: f_cost,
+            h_cost: h_cost,
+            f_cost: g_cost + h_cost,
         }
     }
 }
@@ -67,68 +116,96 @@ fn rebuild_path(node: Node) -> Vec<Position> {
     result
 }
 
-fn a_start_find(start_point: Position, end_point: Position) -> Vec<Position>{
-    let start_node: Node = Node { comes_from: None, pos: start_point, g_cost: 0, f_cost: 0};
+fn a_start_find(start_point: Position, end_point: Position, mut board: Board) -> Vec<Position> {
+    let h_cost = start_point.distance_to_other_position(end_point) as i32;
+    let start_node: Node = Node {
+        comes_from: None,
+        pos: start_point,
+        g_cost: 0,
+        h_cost: h_cost,
+        f_cost: 0,
+    };
     let mut to_search_values: HashMap<Position, Node> = HashMap::new();
-    let mut processed_targets: Vec<Position> = vec![];
+    let mut processed_targets: HashMap<Position, i32> = HashMap::new();
     to_search_values.insert(start_node.pos, start_node.clone());
 
     while !to_search_values.is_empty() {
-        let (best_candidate, node) = 
-            to_search_values
+        let (best_candidate, node) = to_search_values
             .clone()
             .into_iter()
-            .min_by(|(_, node_1), (_, node_2)| {
-                node_1.f_cost.cmp(&node_2.f_cost)
-            })
-            .unwrap();   
+            .min_by(|(_, node_1), (_, node_2)| node_1.f_cost.cmp(&node_2.f_cost))
+            .unwrap();
 
+        thread::sleep(time::Duration::from_millis(300));
+        print_board(&board, &start_point, &end_point, &vec![]);
         if best_candidate.eq(&end_point) {
-            return rebuild_path(node.clone()); 
+            let path_to_point = rebuild_path(node.clone());
+            print_board(&board, &start_point, &end_point, &path_to_point);
+            return path_to_point;
         }
 
-        let neighbours = get_neigthbours(&best_candidate, processed_targets.clone());
+        let neighbours = get_neigthbours(&best_candidate, processed_targets.clone(), &board);
 
         to_search_values.remove(&best_candidate);
-        processed_targets.push(best_candidate);
-        for n in neighbours{
+        processed_targets.insert(best_candidate, 1);
+        for n in neighbours {
             let h_cost = n.distance_to_other_position(end_point) as i32;
-            let g_cost = node.g_cost + 1; 
-            let new_node = Node::new(Some(Box::new(node.clone())), best_candidate, g_cost, g_cost + h_cost);
-            to_search_values.insert(n, new_node);
+            let g_cost = node.g_cost + 1;
+            let new_node = Node::new(Some(Box::new(node.clone())), n, g_cost, h_cost);
+            to_search_values.insert(n, new_node.clone());
+            board.positions[(n.x, n.y)] = Some(new_node);
         }
     }
     return vec![];
 }
 
-
 fn main() {
     use std::time::Instant;
     let now = Instant::now();
-    a_start_find(Position::generate_random_position(), Position::generate_random_position());
+    let board = Board::new(10, 10);
+    a_start_find(
+        Position::generate_random_position(board.heigth, board.width),
+        Position::generate_random_position(board.heigth, board.width),
+        board,
+    );
     let elapsed = now.elapsed();
     println!("Elapsed: {:.2?}", elapsed)
 }
 
-/* fn draw_board(height: i32, width: i32, points: Vec<Position>, start_point: Position, end_point: Position){
-    println!();
-    for i in 0..height{
-        for j in 0..width{
-                if i == start_point.y && j == start_point.x{
-                    print!("start|");
-                } else if  i == end_point.y && j == end_point.x{
-                    print!("goal |");
+fn get_neigthbours(
+    position: &Position,
+    processed_values: HashMap<Position, i32>,
+    board: &Board,
+) -> Vec<Position> {
+    position
+        .get_neigthbours()
+        .into_iter()
+        .filter(|n| !processed_values.contains_key(&n) && n.x < board.width && n.y < board.heigth)
+        .collect()
+}
+
+fn print_board(
+    board: &Board,
+    start_point: &Position,
+    end_point: &Position,
+    path_to_point: &Vec<Position>,
+) {
+    for i in 0..board.heigth {
+        for j in 0..board.width {
+            if i == start_point.y && j == start_point.x {
+                print!("start   |");
+            } else if i == end_point.y && j == end_point.x {
+                print!("goal    |");
+            } else if path_to_point.contains(&Position { x: j, y: i }) {
+                print!(" ->     |");
+            } else {
+                let elem = &board.positions[(j, i)];
+                match elem {
+                    None => print!("   *    |"),
+                    Some(node) => print!("g{},h{}|", node.g_cost, node.h_cost),
                 }
-                else if points.contains(&Position { x: j, y: i }) {
-                    print!("  p  |");
-                } else {
-                    print!("{} , {}|", j, i)
-                }
+            }
         }
         println!()
     }
-}
-*/
-fn get_neigthbours(position: &Position, processed_values: Vec<Position>) -> Vec<Position> {
-    position.get_neigthbours().into_iter().filter(|n| !processed_values.contains(&n) && n.x >= 0 && n.x <= 200 && n.y >= 0 && n.y <= 200).collect()
 }
