@@ -55,28 +55,56 @@ impl Position {
         return 14 * i32::min(x_distance, y_distance) + 10 * remaining;
     }
 
-    fn get_neigthbours(self) -> Vec<Position> {
+    fn get_neigthbours(self, board: &Board) -> Vec<Position> {
         let mut positions = vec![];
         if self.x > 0 {
             positions.push(Position {
                 x: self.x - 1,
                 y: self.y,
-            })
+            }); // left
+            if self.y > 0 {
+                positions.push(Position {
+                    x: self.x - 1,
+                    y: self.y - 1,
+                }); // left down
+            }
+            if self.y < board.heigth{
+                positions.push(Position {
+                    x: self.x - 1,
+                    y: self.y + 1,
+                }); // left up
+            }
         }
         if self.y > 0 {
             positions.push(Position {
                 x: self.x,
                 y: self.y - 1,
-            })
+            }); //down
         }
-        positions.push(Position {
-            x: self.x + 1,
-            y: self.y,
-        });
-        positions.push(Position {
-            x: self.x,
-            y: self.y + 1,
-        });
+        if self.y < board.heigth{
+            positions.push(Position {
+                x: self.x,
+                y: self.y + 1,
+            }); // up
+        }
+        if self.x < board.width{
+            positions.push(Position {
+                x: self.x + 1,
+                y: self.y,
+            }); // right
+            if self.y > 0 {
+                positions.push(Position {
+                    x: self.x + 1,
+                    y: self.y - 1,
+                }); // right down
+            }
+            if self.y < board.heigth{
+                positions.push(Position {
+                    x: self.x + 1,
+                    y: self.y + 1,
+                }); // right up
+            }
+        }
 
         positions
     }
@@ -136,8 +164,8 @@ fn a_start_find(start_point: Position, end_point: Position, mut board: Board) ->
             .min_by(|(_, node_1), (_, node_2)| node_1.f_cost.cmp(&node_2.f_cost))
             .unwrap();
 
-        thread::sleep(time::Duration::from_millis(300));
-        print_board(&board, &start_point, &end_point, &vec![]);
+         thread::sleep(time::Duration::from_millis(300));
+         print_board(&board, &start_point, &end_point, &vec![]);
         if best_candidate.eq(&end_point) {
             let path_to_point = rebuild_path(node.clone());
             print_board(&board, &start_point, &end_point, &path_to_point);
@@ -178,7 +206,7 @@ fn get_neigthbours(
     board: &Board,
 ) -> Vec<Position> {
     position
-        .get_neigthbours()
+        .get_neigthbours(&board)
         .into_iter()
         .filter(|n| !processed_values.contains_key(&n) && n.x < board.width && n.y < board.heigth)
         .collect()
@@ -193,19 +221,19 @@ fn print_board(
     for i in 0..board.heigth {
         for j in 0..board.width {
             if i == start_point.y && j == start_point.x {
-                print!("start   |");
+                print!("{:^8}|", "start");
             } else if i == end_point.y && j == end_point.x {
-                print!("goal    |");
+                print!("{:^8}|", "goal");
             } else if path_to_point.contains(&Position { x: j, y: i }) {
-                print!(" ->     |");
+                print!("{:^8}|", "->");
             } else {
                 let elem = &board.positions[(j, i)];
                 match elem {
-                    None => print!("   *    |"),
-                    Some(node) => print!("g{},h{}|", node.g_cost, node.h_cost),
+                    None => print!("{:^8}|", "*"),
+                    Some(node) => print!("{:^8}|", format!("g{},h{}", node.g_cost, node.h_cost)),
                 }
             }
         }
-        println!()
+        println!();
     }
 }
