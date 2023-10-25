@@ -9,6 +9,7 @@ pub struct Board {
     width: usize,
     heigth: usize,
     positions: DMatrix<Option<Node>>,
+    obstacles: Vec<Position>,
 }
 
 impl Board {
@@ -24,6 +25,7 @@ impl Board {
             positions: DMatrix::from_vec(heigth, width, positions),
             heigth: heigth,
             width: width,
+            obstacles: vec![],
         }
     }
 
@@ -34,6 +36,8 @@ impl Board {
             obstacles.push(obstacle);
             self.positions[(obstacle.x, obstacle.y)] = Some(Node::new(None, obstacle, 0, 0));
         }
+
+        self.obstacles = obstacles.clone();
 
         (obstacles, self)
     }
@@ -181,6 +185,7 @@ fn a_start_find(start_point: Position, end_point: Position, mut board: Board, ob
             .unwrap();
 
          thread::sleep(time::Duration::from_millis(300));
+         print!("\x1B[2J");
          print_board(&board, &start_point, &end_point, &vec![]);
         if best_candidate.eq(&end_point) {
             let path_to_point = rebuild_path(node.clone());
@@ -206,11 +211,11 @@ fn a_start_find(start_point: Position, end_point: Position, mut board: Board, ob
 fn main() {
     use std::time::Instant;
     let now = Instant::now();
-    let (obstacles, board) = Board::new(10, 10).generate_obstacles(10);
+    let (obstacles, board) = Board::new(10, 10).generate_obstacles(30);
 
     a_start_find(
-        Position::generate_random_position(board.heigth, board.width),
-        Position::generate_random_position(board.heigth, board.width),
+        Position::new(0, 0),
+        Position::new(9, 9),
         board,
         obstacles
     );
@@ -226,7 +231,7 @@ fn get_neigthbours(
     position
         .get_neigthbours(&board)
         .into_iter()
-        .filter(|n| !processed_values.contains_key(&n) && n.x < board.width && n.y < board.heigth) 
+        .filter(|n| !processed_values.contains_key(&n) && n.x < board.width && n.y < board.heigth && !board.obstacles.contains(&n))  
         .collect()
 }
 
