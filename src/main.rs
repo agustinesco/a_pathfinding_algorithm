@@ -26,6 +26,17 @@ impl Board {
             width: width,
         }
     }
+
+    fn generate_obstacles(mut self, amount: i32) -> (Vec<Position>, Board){
+        let mut obstacles = vec![];
+        for _ in 0..amount{
+            let obstacle = Position::generate_random_position(self.heigth, self.width);
+            obstacles.push(obstacle);
+            self.positions[(obstacle.x, obstacle.y)] = Some(Node::new(None, obstacle, 0, 0));
+        }
+
+        (obstacles, self)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
@@ -144,7 +155,7 @@ fn rebuild_path(node: Node) -> Vec<Position> {
     result
 }
 
-fn a_start_find(start_point: Position, end_point: Position, mut board: Board) -> Vec<Position> {
+fn a_start_find(start_point: Position, end_point: Position, mut board: Board, obstacles: Vec<Position>) -> Vec<Position> {
     let h_cost = start_point.distance_to_other_position(end_point) as i32;
     let start_node: Node = Node {
         comes_from: None,
@@ -155,6 +166,11 @@ fn a_start_find(start_point: Position, end_point: Position, mut board: Board) ->
     };
     let mut to_search_values: HashMap<Position, Node> = HashMap::new();
     let mut processed_targets: HashMap<Position, i32> = HashMap::new();
+
+    for obstacle in obstacles{
+        processed_targets.insert(obstacle, 1);
+    }
+
     to_search_values.insert(start_node.pos, start_node.clone());
 
     while !to_search_values.is_empty() {
@@ -190,11 +206,13 @@ fn a_start_find(start_point: Position, end_point: Position, mut board: Board) ->
 fn main() {
     use std::time::Instant;
     let now = Instant::now();
-    let board = Board::new(10, 10);
+    let (obstacles, board) = Board::new(10, 10).generate_obstacles(10);
+
     a_start_find(
         Position::generate_random_position(board.heigth, board.width),
         Position::generate_random_position(board.heigth, board.width),
         board,
+        obstacles
     );
     let elapsed = now.elapsed();
     println!("Elapsed: {:.2?}", elapsed)
@@ -208,7 +226,7 @@ fn get_neigthbours(
     position
         .get_neigthbours(&board)
         .into_iter()
-        .filter(|n| !processed_values.contains_key(&n) && n.x < board.width && n.y < board.heigth)
+        .filter(|n| !processed_values.contains_key(&n) && n.x < board.width && n.y < board.heigth) 
         .collect()
 }
 
@@ -230,10 +248,18 @@ fn print_board(
                 let elem = &board.positions[(j, i)];
                 match elem {
                     None => print!("{:^8}|", "*"),
-                    Some(node) => print!("{:^8}|", format!("g{},h{}", node.g_cost, node.h_cost)),
+                    Some(node) => {
+                        if node.f_cost == 0{
+                            print!("{:^8}|", "obs")
+                        }
+                        else{
+                            print!("{:^8}|", format!("g{},h{}", node.g_cost, node.h_cost))
+                        }
+                    }
                 }
             }
         }
         println!();
     }
 }
+
