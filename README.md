@@ -1,6 +1,6 @@
-# a_pathfinding_algorithm
+# A* pathfinding algorithm
 
-An implementation of a pathfinding algorythm using rust 
+An implementation of an a* pathfinding algorithm using rust 
 
 I've take inspiration in the following tutorials
 
