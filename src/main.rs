@@ -32,7 +32,7 @@ impl Board {
     fn generate_obstacles(mut self, amount: i32) -> (Vec<Position>, Board){
         let mut obstacles = vec![];
         for _ in 0..amount{
-            let obstacle = Position::generate_random_position(self.heigth, self.width);
+            let obstacle = Position::generate_random_position(self.heigth, self.width, &self);
             obstacles.push(obstacle);
             self.positions[(obstacle.x, obstacle.y)] = Some(Node::new(None, obstacle, 0, 0));
         }
@@ -54,11 +54,15 @@ impl Position {
         Position { x: x, y: y }
     }
 
-    fn generate_random_position(heigth: usize, width: usize) -> Position {
+    fn generate_random_position(heigth: usize, width: usize, board: &Board) -> Position {
         let mut rng = rand::thread_rng();
         let random_start_x = rng.gen_range(0..width);
         let random_start_y = rng.gen_range(0..heigth);
-        Position::new(random_start_x, random_start_y)
+        if board.obstacles.contains(&Position { x: random_start_x, y: random_start_y }){
+            Position::generate_random_position(heigth, width, board)
+        } else {
+            Position::new(random_start_x, random_start_y)
+        }
     }
 
     fn distance_to_other_position(self, other_point: Position) -> i32 {
@@ -213,9 +217,11 @@ fn main() {
     let now = Instant::now();
     let (obstacles, board) = Board::new(10, 10).generate_obstacles(30);
 
+    let start_point = Position::generate_random_position(board.heigth, board.heigth, &board);
+    let end_point = Position::generate_random_position(board.heigth, board.heigth, &board);
     a_start_find(
-        Position::new(0, 0),
-        Position::new(9, 9),
+        start_point,
+        end_point,
         board,
         obstacles
     );
