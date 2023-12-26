@@ -1,0 +1,45 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'a_star_pathfinder'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=a_star_pathfinder",
+                    "--package=a_star_pathfinder"
+                ],
+                "filter": {
+                    "name": "a_star_pathfinder",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'a_star_pathfinder'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=a_star_pathfinder",
+                    "--package=a_star_pathfinder"
+                ],
+                "filter": {
+                    "name": "a_star_pathfinder",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
